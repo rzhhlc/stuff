@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Miss Elainee - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        /* Custom scrollbar for aesthetic */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .tab-active {
+            border-bottom: 3px solid #3b82f6;
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+        .tab-inactive {
+            color: #64748b;
+            border-bottom: 3px solid transparent;
+        }
+        .tab-inactive:hover {
+            color: #3b82f6;
+            border-bottom: 3px solid #bfdbfe;
+        }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col">
+
+    <header class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex-shrink-0 flex items-center">
+                    <div class="w-10 h-10 bg-blue-600 text-white rounded-lg flex items-center justify-center text-xl font-bold shadow-md mr-3">
+                        ME
+                    </div>
+                    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Miss Elainee</h1>
+                </div>
+                <div class="text-sm text-slate-500 hidden sm:block">
+                    Download Portal
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="bg-white shadow-sm mb-6">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Tabs will be injected here by JS -->
+            <nav id="tabs-container" class="flex overflow-x-auto space-x-8" aria-label="Tabs">
+                <!-- Skeleton loader for tabs -->
+                <div class="animate-pulse flex space-x-8 py-4">
+                    <div class="h-4 bg-slate-200 rounded w-16"></div>
+                    <div class="h-4 bg-slate-200 rounded w-16"></div>
+                    <div class="h-4 bg-slate-200 rounded w-16"></div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-10">
+        
+        <div id="status-message" class="hidden mb-6 p-4 rounded-md"></div>
+
+        <div id="tab-title" class="mb-6">
+            <h2 class="text-xl font-semibold text-slate-800" id="current-category-name">Loading...</h2>
+            <p class="text-sm text-slate-500 mt-1" id="current-category-desc">Please wait while files are indexed.</p>
+        </div>
+
+        <!-- Files grid -->
+        <div id="files-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Files will be injected here by JS -->
+        </div>
+
+    </main>
+
+    <!-- Load the auto-generated site data. If it fails, fallback logic takes over -->
+    <script src="site_data.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            const tabsContainer = document.getElementById('tabs-container');
+            const filesGrid = document.getElementById('files-grid');
+            const catName = document.getElementById('current-category-name');
+            const catDesc = document.getElementById('current-category-desc');
+            const statusMessage = document.getElementById('status-message');
+
+            let activeTabId = null;
+            let siteData = [];
+
+            // Check if site_data.js loaded properly via the script tag
+            if (typeof window.SITE_DATA !== 'undefined') {
+                siteData = window.SITE_DATA;
+            } else {
+                // Fallback / Initial State if Admin App hasn't generated the file yet
+                showStatus('warning', 'Configuration file (site_data.js) not found. Please run the local admin_app.html to scan folders and generate the configuration. Showing placeholder data.');
+                siteData = [
+                    { tabName: 'Songs', folderName: 'songs', files: [] },
+                    { tabName: 'Images', folderName: 'images', files: [] },
+                    { tabName: 'Videos', folderName: 'videos', files: [] },
+                    { tabName: 'Documents', folderName: 'documents', files: [] }
+                ];
+            }
+
+            // Set initial active tab
+            if (siteData.length > 0) {
+                activeTabId = siteData[0].folderName;
+            }
+
+            function renderTabs() {
+                tabsContainer.innerHTML = '';
+                if (siteData.length === 0) {
+                    tabsContainer.innerHTML = '<span class="py-4 text-slate-500">No categories available.</span>';
+                    return;
+                }
+
+                siteData.forEach(tab => {
+                    const btn = document.createElement('button');
+                    const isActive = tab.folderName === activeTabId;
+                    
+                    btn.className = `whitespace-nowrap py-4 px-1 focus:outline-none transition-colors duration-200 ${isActive ? 'tab-active' : 'tab-inactive'}`;
+                    btn.innerText = tab.tabName;
+                    
+                    btn.onclick = () => {
+                        activeTabId = tab.folderName;
+                        renderTabs();
+                        renderFiles();
+                    };
+                    
+                    tabsContainer.appendChild(btn);
+                });
+            }
+
+            function renderFiles() {
+                filesGrid.innerHTML = '';
+                const currentTab = siteData.find(t => t.folderName === activeTabId);
+                
+                if (!currentTab) {
+                    catName.innerText = 'Not Found';
+                    catDesc.innerText = 'This category does not exist.';
+                    return;
+                }
+
+                catName.innerText = currentTab.tabName;
+                
+                if (!currentTab.files || currentTab.files.length === 0) {
+                    catDesc.innerText = `The "${currentTab.folderName}" folder is currently empty.`;
+                    filesGrid.innerHTML = `
+                        <div class="col-span-full flex flex-col items-center justify-center p-12 bg-white rounded-xl border border-dashed border-slate-300">
+                            <svg class="w-12 h-12 text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                            <p class="text-slate-500 text-sm">No files uploaded here yet.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                catDesc.innerText = `${currentTab.files.length} file(s) available in /${currentTab.folderName}/`;
+
+                currentTab.files.forEach(fileItem => {
+                    // Backwards compatibility: handle older scans (strings) vs new scans (objects)
+                    const fileName = typeof fileItem === 'string' ? fileItem : fileItem.name;
+                    const isLink = typeof fileItem === 'object' && fileItem.type === 'link';
+                    const targetUrl = isLink ? fileItem.url : `${currentTab.folderName}/${fileName}`;
+                    
+                    const fileExt = fileName.split('.').pop().toLowerCase();
+                    // Strip out .txt extensions for links so they display beautifully
+                    const displayName = isLink ? fileName.replace(/\.(txt|url|webloc)$/i, '') : fileName;
+                    
+                    const card = document.createElement('div');
+                    card.className = "bg-white rounded-xl shadow-sm border border-slate-100 p-5 hover:shadow-md transition-shadow duration-200 flex flex-col justify-between group";
+                    
+                    let buttonHtml = '';
+                    if (isLink) {
+                        buttonHtml = `
+                        <a href="${targetUrl}" target="_blank" rel="noopener noreferrer" class="w-full inline-flex justify-center items-center px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-md text-sm font-medium text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            Open Website
+                        </a>`;
+                    } else {
+                        buttonHtml = `
+                        <a href="${targetUrl}" download="${fileName}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm font-medium text-slate-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Download File
+                        </a>`;
+                    }
+                    
+                    card.innerHTML = `
+                        <div class="flex items-start mb-4">
+                            <div class="w-10 h-10 rounded-lg ${isLink ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-50 text-blue-600'} flex items-center justify-center font-bold text-xs uppercase mr-3 flex-shrink-0">
+                                ${isLink ? 'LINK' : fileExt.substring(0,4)}
+                            </div>
+                            <div class="overflow-hidden w-full">
+                                <h3 class="text-sm font-semibold text-slate-800 truncate" title="${displayName}">${displayName}</h3>
+                                <p class="text-xs text-slate-400 mt-1">${isLink ? 'Website Shortcut' : 'Ready for download'}</p>
+                            </div>
+                        </div>
+                        ${buttonHtml}
+                    `;
+                    filesGrid.appendChild(card);
+                });
+            }
+
+            function showStatus(type, message) {
+                statusMessage.className = `mb-6 p-4 rounded-md text-sm flex items-center ${
+                    type === 'warning' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-blue-50 text-blue-800 border border-blue-200'
+                }`;
+                statusMessage.innerHTML = `<svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span>${message}</span>`;
+                statusMessage.style.display = 'flex';
+            }
+
+            // Initial render
+            renderTabs();
+            renderFiles();
+        });
+    </script>
+</body>
+</html>
