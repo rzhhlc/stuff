@@ -17,6 +17,10 @@ window.SITE_DATA = [
             {
                 "name": "puppies.png",
                 "type": "file"
+            },
+            {
+                "name": "puppie 9 27.png",
+                "type": "file"
             }
         ]
     },
